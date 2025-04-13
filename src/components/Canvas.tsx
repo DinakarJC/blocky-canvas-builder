@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import React, { useState, useEffect, CSSProperties } from "react";
 import { 
   LayoutPanelLeft, 
   Type, 
@@ -60,7 +60,7 @@ interface DroppedComponent {
     padding: string;
     margin: string;
     borderRadius: string;
-    textAlign?: string;
+    textAlign?: "left" | "center" | "right" | "justify" | "start" | "end";
   };
   content?: string;
   attributes?: Record<string, string>;
@@ -151,7 +151,7 @@ export const Canvas = () => {
   };
 
   // Subscribe to style updates from the PropertyPanel
-  React.useEffect(() => {
+  useEffect(() => {
     const handleStyleUpdate = (e: CustomEvent) => {
       const { component } = e.detail;
       updateComponent(component);
@@ -167,10 +167,10 @@ export const Canvas = () => {
   // Render the actual component based on its type
   const renderComponent = (component: DroppedComponent) => {
     const isSelected = selectedComponent === component.id;
-    const baseStyles = {
+    const baseStyles: CSSProperties = {
       ...component.styles,
       border: isSelected ? '2px solid #3b82f6' : '1px solid #e5e7eb',
-      position: 'relative' as const,
+      position: 'relative',
       cursor: 'pointer',
       transition: 'all 0.2s ease'
     };
