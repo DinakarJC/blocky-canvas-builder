@@ -3,7 +3,7 @@ import {
   LayoutPanelLeft, 
   Type, 
   Image, 
-  Button as ButtonIcon, 
+  Square as ButtonIcon, // Changed Button to Square which exists in lucide-react
   Link as LinkIcon, 
   Video, 
   Map, 
