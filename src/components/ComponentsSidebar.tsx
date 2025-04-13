@@ -45,8 +45,13 @@ export const ComponentsSidebar = () => {
     }
   ];
 
-  const handleDragStart = (e: React.DragEvent, component: any) => {
-    e.dataTransfer.setData('component', JSON.stringify(component));
+  const handleDragStart = (e: React.DragEvent, component: { name: string, icon: React.ReactNode }) => {
+    // Only transfer the name of the component, not the entire component with React elements
+    e.dataTransfer.setData('componentName', component.name);
+    e.dataTransfer.setData('componentType', component.name.toLowerCase());
+    
+    // Set a visual effect for dragging
+    e.dataTransfer.effectAllowed = 'move';
   };
 
   return (
