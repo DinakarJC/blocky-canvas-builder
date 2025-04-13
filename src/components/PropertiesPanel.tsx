@@ -1,10 +1,16 @@
-
 import { useState, useEffect } from "react";
 import { Paintbrush, Settings, Layers } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { ComponentIcon } from "./ComponentIcon";
 
+// Creating a separate component for the ComponentIcon
+export interface ComponentIconProps {
+  type: string;
+}
+
+// StylesTab component
 interface StylesProps {
   selectedComponent: any;
   onUpdate: (updatedStyles: any) => void;
@@ -235,6 +241,7 @@ const StylesTab = ({ selectedComponent, onUpdate }: StylesProps) => {
   );
 };
 
+// SettingsTab component
 const SettingsTab = ({ selectedComponent, onUpdate }: StylesProps) => {
   if (!selectedComponent) {
     return <div className="p-4 text-center text-muted-foreground">Select a component to edit its settings</div>;
@@ -350,33 +357,34 @@ const SettingsTab = ({ selectedComponent, onUpdate }: StylesProps) => {
   );
 };
 
-const LayersTab = () => (
+interface LayerItem {
+  id: string;
+  name: string;
+  type: string;
+}
+
+const LayersTab = ({ onSelectLayer, layers }: { onSelectLayer: (id: string) => void, layers: LayerItem[] }) => (
   <div className="p-4">
     <div className="space-y-1">
-      <div className="bg-secondary rounded-md p-2 flex items-center justify-between">
-        <span className="text-sm">Section</span>
-        <span className="text-xs text-muted-foreground">1</span>
-      </div>
-      <div className="bg-white rounded-md p-2 pl-4 flex items-center justify-between border border-border">
-        <span className="text-sm">Row</span>
-        <span className="text-xs text-muted-foreground">1.1</span>
-      </div>
-      <div className="bg-white rounded-md p-2 pl-6 flex items-center justify-between border border-border">
-        <span className="text-sm">Column</span>
-        <span className="text-xs text-muted-foreground">1.1.1</span>
-      </div>
-      <div className="bg-white rounded-md p-2 pl-8 flex items-center justify-between border border-border">
-        <span className="text-sm">Text</span>
-        <span className="text-xs text-muted-foreground">1.1.1.1</span>
-      </div>
-      <div className="bg-white rounded-md p-2 pl-6 flex items-center justify-between border border-border">
-        <span className="text-sm">Column</span>
-        <span className="text-xs text-muted-foreground">1.1.2</span>
-      </div>
-      <div className="bg-white rounded-md p-2 pl-8 flex items-center justify-between border border-border">
-        <span className="text-sm">Button</span>
-        <span className="text-xs text-muted-foreground">1.1.2.1</span>
-      </div>
+      {layers.length > 0 ? (
+        layers.map((layer, index) => (
+          <div 
+            key={layer.id}
+            className="bg-white rounded-md p-2 flex items-center justify-between border border-border hover:bg-gray-50 cursor-pointer"
+            onClick={() => onSelectLayer(layer.id)}
+          >
+            <div className="flex items-center">
+              <ComponentIcon type={layer.type} />
+              <span className="text-sm ml-2">{layer.name}</span>
+            </div>
+            <span className="text-xs text-muted-foreground">{index + 1}</span>
+          </div>
+        ))
+      ) : (
+        <div className="text-center text-sm text-muted-foreground py-4">
+          No components on canvas
+        </div>
+      )}
     </div>
   </div>
 );
@@ -384,6 +392,7 @@ const LayersTab = () => (
 export const PropertiesPanel = () => {
   const [activeTab, setActiveTab] = useState("styles");
   const [selectedComponent, setSelectedComponent] = useState<any>(null);
+  const [layers, setLayers] = useState<LayerItem[]>([]);
 
   // Listen for component selection events from Canvas
   useEffect(() => {
@@ -391,10 +400,31 @@ export const PropertiesPanel = () => {
       setSelectedComponent(e.detail.component);
     };
 
+    const handleLayersUpdated = (e: CustomEvent) => {
+      const { components } = e.detail;
+      // Transform components into layer items
+      const layerItems = components.map((comp: any) => ({
+        id: comp.id,
+        name: comp.name,
+        type: comp.type
+      }));
+      setLayers(layerItems);
+    };
+
+    const handleTabRequest = (e: CustomEvent) => {
+      if (e.detail.tab) {
+        setActiveTab(e.detail.tab);
+      }
+    };
+
     window.addEventListener('component-selected' as any, handleComponentSelected as any);
+    window.addEventListener('layers-updated' as any, handleLayersUpdated as any);
+    window.addEventListener('styles-panel-requested' as any, handleTabRequest as any);
     
     return () => {
       window.removeEventListener('component-selected' as any, handleComponentSelected as any);
+      window.removeEventListener('layers-updated' as any, handleLayersUpdated as any);
+      window.removeEventListener('styles-panel-requested' as any, handleTabRequest as any);
     };
   }, []);
 
@@ -406,6 +436,18 @@ export const PropertiesPanel = () => {
     window.dispatchEvent(new CustomEvent('component-updated', { 
       detail: { component: updatedComponent } 
     }));
+  };
+
+  // Handle layer selection from layers panel
+  const handleLayerSelect = (id: string) => {
+    // Find the component in the layers
+    const component = layers.find(layer => layer.id === id);
+    if (component) {
+      // Request the component details from Canvas
+      window.dispatchEvent(new CustomEvent('layer-selected', {
+        detail: { id }
+      }));
+    }
   };
 
   return (
@@ -420,28 +462,28 @@ export const PropertiesPanel = () => {
       </div>
       <div className="flex border-b border-border">
         <button 
-          className={`panel-tab ${activeTab === "styles" ? "active" : ""}`}
+          className={`panel-tab ${activeTab === "styles" ? "active bg-gray-100" : ""} flex-1 py-2 text-sm font-medium`}
           onClick={() => setActiveTab("styles")}
         >
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-center gap-1">
             <Paintbrush size={14} />
             <span>Styles</span>
           </div>
         </button>
         <button 
-          className={`panel-tab ${activeTab === "settings" ? "active" : ""}`}
+          className={`panel-tab ${activeTab === "settings" ? "active bg-gray-100" : ""} flex-1 py-2 text-sm font-medium`}
           onClick={() => setActiveTab("settings")}
         >
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-center gap-1">
             <Settings size={14} />
             <span>Settings</span>
           </div>
         </button>
         <button 
-          className={`panel-tab ${activeTab === "layers" ? "active" : ""}`}
+          className={`panel-tab ${activeTab === "layers" ? "active bg-gray-100" : ""} flex-1 py-2 text-sm font-medium`}
           onClick={() => setActiveTab("layers")}
         >
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-center gap-1">
             <Layers size={14} />
             <span>Layers</span>
           </div>
@@ -450,7 +492,7 @@ export const PropertiesPanel = () => {
       <div className="flex-1 overflow-y-auto">
         {activeTab === "styles" && <StylesTab selectedComponent={selectedComponent} onUpdate={handleComponentUpdate} />}
         {activeTab === "settings" && <SettingsTab selectedComponent={selectedComponent} onUpdate={handleComponentUpdate} />}
-        {activeTab === "layers" && <LayersTab />}
+        {activeTab === "layers" && <LayersTab onSelectLayer={handleLayerSelect} layers={layers} />}
       </div>
     </div>
   );

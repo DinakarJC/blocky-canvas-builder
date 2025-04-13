@@ -14,6 +14,7 @@ import {
   Container
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 // Component to render the appropriate icon based on component type
 const ComponentIcon = ({ type }: { type: string }) => {
@@ -69,6 +70,17 @@ interface DroppedComponent {
 export const Canvas = () => {
   const [droppedComponents, setDroppedComponents] = useState<DroppedComponent[]>([]);
   const [selectedComponent, setSelectedComponent] = useState<string | null>(null);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [history, setHistory] = useState<DroppedComponent[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Add to history when components change
+  const addToHistory = (components: DroppedComponent[]) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(JSON.parse(JSON.stringify(components)));
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -101,13 +113,18 @@ export const Canvas = () => {
         content: getDefaultContent(componentType)
       };
       
-      setDroppedComponents([...droppedComponents, newComponent]);
+      const newComponents = [...droppedComponents, newComponent];
+      setDroppedComponents(newComponents);
       setSelectedComponent(newComponent.id);
+      addToHistory(newComponents);
 
       // Publish the selected component to the PropertiesPanel
       window.dispatchEvent(new CustomEvent('component-selected', { 
         detail: { component: newComponent } 
       }));
+
+      // Update layers panel
+      updateLayersPanel(newComponents);
     }
   };
 
@@ -127,27 +144,43 @@ export const Canvas = () => {
   };
 
   const handleRemoveComponent = (id: string) => {
-    setDroppedComponents(droppedComponents.filter(component => component.id !== id));
+    const newComponents = droppedComponents.filter(component => component.id !== id);
+    setDroppedComponents(newComponents);
     if (selectedComponent === id) {
       setSelectedComponent(null);
     }
+    addToHistory(newComponents);
+
+    // Update layers panel
+    updateLayersPanel(newComponents);
   };
 
   const handleSelectComponent = (component: DroppedComponent) => {
-    setSelectedComponent(component.id);
-    // Publish the selected component to the PropertiesPanel
-    window.dispatchEvent(new CustomEvent('component-selected', { 
-      detail: { component } 
-    }));
+    if (!isPreviewMode) {
+      setSelectedComponent(component.id);
+      // Publish the selected component to the PropertiesPanel
+      window.dispatchEvent(new CustomEvent('component-selected', { 
+        detail: { component } 
+      }));
+    }
   };
 
   // Handler for updating a component's styles from the PropertyPanel
   const updateComponent = (updatedComponent: DroppedComponent) => {
-    setDroppedComponents(
-      droppedComponents.map(comp => 
-        comp.id === updatedComponent.id ? updatedComponent : comp
-      )
+    const newComponents = droppedComponents.map(comp => 
+      comp.id === updatedComponent.id ? updatedComponent : comp
     );
+    setDroppedComponents(newComponents);
+    
+    // Update layers panel
+    updateLayersPanel(newComponents);
+  };
+
+  // Function to update the layers panel
+  const updateLayersPanel = (components: DroppedComponent[]) => {
+    window.dispatchEvent(new CustomEvent('layers-updated', {
+      detail: { components }
+    }));
   };
 
   // Subscribe to style updates from the PropertyPanel
@@ -157,12 +190,86 @@ export const Canvas = () => {
       updateComponent(component);
     };
 
+    // Listen for toolbar actions
+    const handleUndo = () => {
+      if (historyIndex > 0) {
+        setHistoryIndex(historyIndex - 1);
+        setDroppedComponents(JSON.parse(JSON.stringify(history[historyIndex - 1])));
+        updateLayersPanel(history[historyIndex - 1]);
+      } else {
+        toast.error("Nothing to undo");
+      }
+    };
+
+    const handleRedo = () => {
+      if (historyIndex < history.length - 1) {
+        setHistoryIndex(historyIndex + 1);
+        setDroppedComponents(JSON.parse(JSON.stringify(history[historyIndex + 1])));
+        updateLayersPanel(history[historyIndex + 1]);
+      } else {
+        toast.error("Nothing to redo");
+      }
+    };
+
+    const handlePreviewToggle = (e: CustomEvent) => {
+      setIsPreviewMode(e.detail.isPreviewMode);
+      if (e.detail.isPreviewMode) {
+        setSelectedComponent(null);
+      }
+    };
+
+    const handleClearCanvas = () => {
+      setDroppedComponents([]);
+      setSelectedComponent(null);
+      addToHistory([]);
+      updateLayersPanel([]);
+    };
+
+    const handleTemplateSection = (e: CustomEvent) => {
+      const { template } = e.detail;
+      
+      // Generate unique IDs for all components in the template
+      const newComponents = template.components.map((component: any) => ({
+        ...component,
+        id: `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }));
+      
+      const updatedComponents = [...droppedComponents, ...newComponents];
+      setDroppedComponents(updatedComponents);
+      addToHistory(updatedComponents);
+      updateLayersPanel(updatedComponents);
+    };
+    
+    const handleStylesPanel = (e: CustomEvent) => {
+      if (selectedComponent) {
+        // The tab is already in the event detail
+        console.log("Opening styles panel with tab:", e.detail.tab);
+      } else {
+        toast.error("Please select a component first");
+      }
+    };
+
     window.addEventListener('component-updated' as any, handleStyleUpdate as any);
+    window.addEventListener('undo-requested' as any, handleUndo as any);
+    window.addEventListener('redo-requested' as any, handleRedo as any);
+    window.addEventListener('preview-mode-toggled' as any, handlePreviewToggle as any);
+    window.addEventListener('clear-canvas-requested' as any, handleClearCanvas as any);
+    window.addEventListener('template-section-added' as any, handleTemplateSection as any);
+    window.addEventListener('styles-panel-requested' as any, handleStylesPanel as any);
+    
+    // Initial update of layers panel
+    updateLayersPanel(droppedComponents);
     
     return () => {
       window.removeEventListener('component-updated' as any, handleStyleUpdate as any);
+      window.removeEventListener('undo-requested' as any, handleUndo as any);
+      window.removeEventListener('redo-requested' as any, handleRedo as any);
+      window.removeEventListener('preview-mode-toggled' as any, handlePreviewToggle as any);
+      window.removeEventListener('clear-canvas-requested' as any, handleClearCanvas as any);
+      window.removeEventListener('template-section-added' as any, handleTemplateSection as any);
+      window.removeEventListener('styles-panel-requested' as any, handleStylesPanel as any);
     };
-  }, [droppedComponents]);
+  }, [droppedComponents, selectedComponent, history, historyIndex]);
 
   // Render the actual component based on its type
   const renderComponent = (component: DroppedComponent) => {
@@ -302,7 +409,7 @@ export const Canvas = () => {
 
   return (
     <div 
-      className="canvas-area relative p-8"
+      className={`canvas-area relative p-8 ${isPreviewMode ? 'preview-mode' : ''}`}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
@@ -312,18 +419,20 @@ export const Canvas = () => {
             <div 
               key={component.id} 
               onClick={() => handleSelectComponent(component)}
-              className="relative group"
+              className={`relative group ${isPreviewMode ? 'pointer-events-none' : ''}`}
             >
               {renderComponent(component)}
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRemoveComponent(component.id);
-                }}
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-1 text-gray-500 hover:text-red-500 z-10"
-              >
-                &times;
-              </button>
+              {!isPreviewMode && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveComponent(component.id);
+                  }}
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-1 text-gray-500 hover:text-red-500 z-10"
+                >
+                  &times;
+                </button>
+              )}
             </div>
           ))}
         </div>
