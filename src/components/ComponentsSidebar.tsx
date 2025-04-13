@@ -4,7 +4,7 @@ import {
   Type, 
   Image, 
   Button as ButtonIcon, 
-  Link, 
+  Link as LinkIcon, 
   Video, 
   Map, 
   FormInput, 
@@ -31,7 +31,7 @@ export const ComponentsSidebar = () => {
         { name: "Text", icon: <Type size={16} /> },
         { name: "Image", icon: <Image size={16} /> },
         { name: "Button", icon: <ButtonIcon size={16} /> },
-        { name: "Link", icon: <Link size={16} /> },
+        { name: "Link", icon: <LinkIcon size={16} /> },
         { name: "Video", icon: <Video size={16} /> },
         { name: "Map", icon: <Map size={16} /> },
       ]
