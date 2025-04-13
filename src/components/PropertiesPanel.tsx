@@ -1,14 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { Paintbrush, Settings, Layers } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ComponentIcon } from "./ComponentIcon";
-
-// Creating a separate component for the ComponentIcon
-export interface ComponentIconProps {
-  type: string;
-}
+import { Skeleton } from "./ui/skeleton";
 
 // StylesTab component
 interface StylesProps {
@@ -361,6 +358,7 @@ interface LayerItem {
   id: string;
   name: string;
   type: string;
+  path?: string;
 }
 
 const LayersTab = ({ onSelectLayer, layers }: { onSelectLayer: (id: string) => void, layers: LayerItem[] }) => (
@@ -375,7 +373,10 @@ const LayersTab = ({ onSelectLayer, layers }: { onSelectLayer: (id: string) => v
           >
             <div className="flex items-center">
               <ComponentIcon type={layer.type} />
-              <span className="text-sm ml-2">{layer.name}</span>
+              <div className="ml-2">
+                <span className="text-sm block">{layer.name}</span>
+                {layer.path && <span className="text-xs text-muted-foreground">{layer.path}</span>}
+              </div>
             </div>
             <span className="text-xs text-muted-foreground">{index + 1}</span>
           </div>
@@ -393,21 +394,19 @@ export const PropertiesPanel = () => {
   const [activeTab, setActiveTab] = useState("styles");
   const [selectedComponent, setSelectedComponent] = useState<any>(null);
   const [layers, setLayers] = useState<LayerItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Listen for component selection events from Canvas
   useEffect(() => {
     const handleComponentSelected = (e: CustomEvent) => {
       setSelectedComponent(e.detail.component);
+      setIsLoading(false);
     };
 
     const handleLayersUpdated = (e: CustomEvent) => {
       const { components } = e.detail;
       // Transform components into layer items
-      const layerItems = components.map((comp: any) => ({
-        id: comp.id,
-        name: comp.name,
-        type: comp.type
-      }));
+      const layerItems: LayerItem[] = components;
       setLayers(layerItems);
     };
 
@@ -440,14 +439,13 @@ export const PropertiesPanel = () => {
 
   // Handle layer selection from layers panel
   const handleLayerSelect = (id: string) => {
-    // Find the component in the layers
-    const component = layers.find(layer => layer.id === id);
-    if (component) {
-      // Request the component details from Canvas
-      window.dispatchEvent(new CustomEvent('layer-selected', {
-        detail: { id }
-      }));
-    }
+    // Set loading state
+    setIsLoading(true);
+    
+    // Request the component details from Canvas
+    window.dispatchEvent(new CustomEvent('layer-selected', {
+      detail: { id }
+    }));
   };
 
   return (
@@ -490,9 +488,20 @@ export const PropertiesPanel = () => {
         </button>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {activeTab === "styles" && <StylesTab selectedComponent={selectedComponent} onUpdate={handleComponentUpdate} />}
-        {activeTab === "settings" && <SettingsTab selectedComponent={selectedComponent} onUpdate={handleComponentUpdate} />}
-        {activeTab === "layers" && <LayersTab onSelectLayer={handleLayerSelect} layers={layers} />}
+        {isLoading ? (
+          <div className="p-4 space-y-3">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ) : (
+          <>
+            {activeTab === "styles" && <StylesTab selectedComponent={selectedComponent} onUpdate={handleComponentUpdate} />}
+            {activeTab === "settings" && <SettingsTab selectedComponent={selectedComponent} onUpdate={handleComponentUpdate} />}
+            {activeTab === "layers" && <LayersTab onSelectLayer={handleLayerSelect} layers={layers} />}
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Undo2, Redo2, Paintbrush, Eye, Upload, Trash2, LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -9,6 +8,7 @@ import {
   PopoverTrigger
 } from "@/components/ui/popover";
 import { toast } from "sonner";
+import CodeExporter from "./CodeExporter";
 
 interface TemplateSection {
   id: string;
@@ -161,6 +161,23 @@ const templateSections: TemplateSection[] = [
 
 export const Toolbar = () => {
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [components, setComponents] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Listen for layers-updated events to keep track of components for code export
+    const handleLayersUpdated = (e: CustomEvent) => {
+      const { components } = e.detail;
+      if (components) {
+        setComponents(components);
+      }
+    };
+
+    window.addEventListener('layers-updated' as any, handleLayersUpdated as any);
+    
+    return () => {
+      window.removeEventListener('layers-updated' as any, handleLayersUpdated as any);
+    };
+  }, []);
 
   const handleUndo = () => {
     // Broadcast undo request to Canvas
@@ -297,6 +314,9 @@ export const Toolbar = () => {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+
+        {/* Code Export Button */}
+        <CodeExporter components={components} />
 
         <TooltipProvider>
           <Tooltip>
