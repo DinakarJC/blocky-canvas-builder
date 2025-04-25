@@ -19,6 +19,9 @@ interface DroppedComponent {
     margin: string;
     borderRadius: string;
     textAlign?: "left" | "center" | "right" | "justify" | "start" | "end";
+    position?: "static" | "relative" | "absolute" | "fixed" | "sticky";
+    top?: string;
+    left?: string;
   };
   content?: string;
   attributes?: Record<string, string>;
@@ -57,6 +60,11 @@ export const Canvas = () => {
     
     if (!componentName) return;
     
+    // Calculate the drop position relative to the canvas
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+    const dropX = canvasRect ? e.clientX - canvasRect.left : 0;
+    const dropY = canvasRect ? e.clientY - canvasRect.top : 0;
+    
     // Create a new component with a unique ID and default styles
     const newComponent: DroppedComponent = {
       name: componentName,
@@ -73,6 +81,9 @@ export const Canvas = () => {
         margin: '0px',
         borderRadius: '4px',
         textAlign: 'left',
+        position: targetId ? 'static' : 'absolute',
+        top: targetId ? undefined : `${dropY}px`,
+        left: targetId ? undefined : `${dropX}px`,
       },
       content: getDefaultContent(componentType),
       parentId: targetId,
@@ -639,7 +650,7 @@ export const Canvas = () => {
       ref={canvasRef}
     >
       {droppedComponents.length > 0 ? (
-        <div className="w-full space-y-4">
+        <div className="w-full h-full relative">
           {droppedComponents.map((component) => renderComponentTree(component))}
         </div>
       ) : (
