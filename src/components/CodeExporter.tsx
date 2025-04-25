@@ -20,23 +20,26 @@ export const CodeExporter = ({ components }: CodeExporterProps) => {
     imports += `import { Button } from '@/components/ui/button';\n\n`;
 
     const generateComponentCode = (component: any) => {
-      switch (component.type.toLowerCase()) {
+      // Ensure component.styles exists to prevent errors
+      const styles = component.styles || {};
+      
+      switch (component.type?.toLowerCase() || 'unknown') {
         case 'text':
-          return `<p style={${JSON.stringify(component.styles)}}>${component.content}</p>`;
+          return `<p style={${JSON.stringify(styles)}}>${component.content || ''}</p>`;
         case 'button':
-          return `<Button style={${JSON.stringify(component.styles)}}>${component.content}</Button>`;
+          return `<Button style={${JSON.stringify(styles)}}>${component.content || ''}</Button>`;
         case 'image':
-          return `<img src="${component.content}" alt="${component.attributes?.alt || 'Image'}" style={${JSON.stringify(component.styles)}} />`;
+          return `<img src="${component.content || ''}" alt="${component.attributes?.alt || 'Image'}" style={${JSON.stringify(styles)}} />`;
         case 'link':
-          return `<a href="${component.attributes?.href || '#'}" target="${component.attributes?.target || ''}" style={${JSON.stringify(component.styles)}}>${component.content}</a>`;
+          return `<a href="${component.attributes?.href || '#'}" target="${component.attributes?.target || ''}" style={${JSON.stringify(styles)}}>${component.content || ''}</a>`;
         case 'section':
-          return `<section style={${JSON.stringify(component.styles)}} className="w-full">
+          return `<section style={${JSON.stringify(styles)}} className="w-full">
   <div className="py-4 flex items-center justify-center bg-gray-50">
     <span className="text-sm text-gray-500">Section</span>
   </div>
 </section>`;
         case 'row':
-          return `<div style={${JSON.stringify(component.styles)}} className="flex flex-row w-full gap-4">
+          return `<div style={${JSON.stringify(styles)}} className="flex flex-row w-full gap-4">
   <div className="flex-1 py-8 bg-gray-50 flex items-center justify-center">
     <span className="text-sm text-gray-500">Column 1</span>
   </div>
@@ -51,7 +54,7 @@ export const CodeExporter = ({ components }: CodeExporterProps) => {
         case 'video':
         case 'map':
         default:
-          return `<div style={${JSON.stringify(component.styles)}}>${component.name} Component</div>`;
+          return `<div style={${JSON.stringify(styles)}}>${component.name || 'Unknown'} Component</div>`;
       }
     };
 
@@ -77,19 +80,22 @@ export default ExportedComponent;
     let htmlCode = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Exported Page</title>\n  <style>\n    body { font-family: system-ui, sans-serif; margin: 0; padding: 0; }\n    .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 1rem; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n";
     
     const generateHTMLComponent = (component: any) => {
-      const styleString = Object.entries(component.styles)
+      // Ensure component.styles exists and is an object before trying to use Object.entries
+      const styles = component.styles || {};
+      
+      const styleString = Object.entries(styles)
         .map(([key, value]) => `${key.replace(/([A-Z])/g, '-$1').toLowerCase()}: ${value}`)
         .join('; ');
       
-      switch (component.type.toLowerCase()) {
+      switch (component.type?.toLowerCase() || 'unknown') {
         case 'text':
-          return `    <p style="${styleString}">${component.content}</p>`;
+          return `    <p style="${styleString}">${component.content || ''}</p>`;
         case 'button':
-          return `    <button style="${styleString}">${component.content}</button>`;
+          return `    <button style="${styleString}">${component.content || ''}</button>`;
         case 'image':
-          return `    <img src="${component.content}" alt="${component.attributes?.alt || 'Image'}" style="${styleString}" />`;
+          return `    <img src="${component.content || ''}" alt="${component.attributes?.alt || 'Image'}" style="${styleString}" />`;
         case 'link':
-          return `    <a href="${component.attributes?.href || '#'}" target="${component.attributes?.target || ''}" style="${styleString}">${component.content}</a>`;
+          return `    <a href="${component.attributes?.href || '#'}" target="${component.attributes?.target || ''}" style="${styleString}">${component.content || ''}</a>`;
         case 'section':
           return `    <section style="${styleString}">
       <div style="padding: 1rem; display: flex; align-items: center; justify-content: center; background-color: #f9fafb;">
@@ -106,11 +112,13 @@ export default ExportedComponent;
       </div>
     </div>`;
         default:
-          return `    <div style="${styleString}">${component.name} Component</div>`;
+          return `    <div style="${styleString}">${component.name || 'Unknown'} Component</div>`;
       }
     };
     
-    htmlCode += components.map(comp => generateHTMLComponent(comp)).join('\n') + '\n  </div>\n</body>\n</html>';
+    // Make sure we're only processing valid components
+    const validComponents = components.filter(comp => comp && typeof comp === 'object');
+    htmlCode += validComponents.map(comp => generateHTMLComponent(comp)).join('\n') + '\n  </div>\n</body>\n</html>';
     
     return htmlCode;
   };
