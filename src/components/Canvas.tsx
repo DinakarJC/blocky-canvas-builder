@@ -19,6 +19,9 @@ interface DroppedComponent {
     margin: string;
     borderRadius: string;
     textAlign?: "left" | "center" | "right" | "justify" | "start" | "end";
+    position?: "relative" | "absolute";
+    left?: string;
+    top?: string;
   };
   content?: string;
   attributes?: Record<string, string>;
@@ -55,7 +58,12 @@ export const Canvas = () => {
     const componentName = e.dataTransfer.getData('componentName');
     const componentType = e.dataTransfer.getData('componentType');
     
-    if (!componentName) return;
+    if (!componentName || !canvasRef.current) return;
+    
+    // Get canvas bounds and drop coordinates
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+    const dropX = e.clientX - canvasRect.left;
+    const dropY = e.clientY - canvasRect.top;
     
     // Create a new component with a unique ID and default styles
     const newComponent: DroppedComponent = {
@@ -73,6 +81,9 @@ export const Canvas = () => {
         margin: '0px',
         borderRadius: '4px',
         textAlign: 'left',
+        position: targetId ? 'relative' : 'absolute',
+        left: targetId ? 'auto' : `${dropX}px`,
+        top: targetId ? 'auto' : `${dropY}px`,
       },
       content: getDefaultContent(componentType),
       parentId: targetId,
@@ -633,13 +644,13 @@ export const Canvas = () => {
 
   return (
     <div 
-      className={`canvas-area relative p-8 ${isPreviewMode ? 'preview-mode' : ''}`}
+      className="canvas-area relative p-8 min-h-[calc(100vh-4rem)]"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       ref={canvasRef}
     >
       {droppedComponents.length > 0 ? (
-        <div className="w-full space-y-4">
+        <div className="w-full h-full">
           {droppedComponents.map((component) => renderComponentTree(component))}
         </div>
       ) : (
